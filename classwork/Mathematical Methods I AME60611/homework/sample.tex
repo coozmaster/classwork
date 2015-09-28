@@ -1,0 +1,92 @@
+\documentclass{article}
+\usepackage{epsfig}
+\renewcommand{\baselinestretch}{1}
+\setlength{\textheight}{9in}
+\setlength{\textwidth}{6.5in}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\topmargin}{0in}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\parindent}{.3in}
+\begin{document}
+
+\leftline{Andrew Oliva}
+\leftline{AME 60611}
+\leftline{28 August 2015}
+
+\bigskip
+This is a sample file for the text formatter \LaTeX.
+I require you to use \LaTeX~for the following reasons:
+
+\begin{itemize}
+
+\item
+It produces the best output of text, figures,
+and equations of any
+program I have seen.
+
+\item
+It is machine-independent.
+You can e-mail ASCII versions of most relevant files.
+
+\item
+It is the tool of choice for many research
+scientists and engineers.
+Many journals accept 
+\LaTeX~submissions, and many books
+are written in \LaTeX.
+
+\end{itemize}
+\medskip
+Some basic instructions are given below.
+Put your text in here.  You can be a little sloppy    about
+spacing.  It adjusts the text to look good.
+{\small You can make the text smaller.}
+{\tiny You can make the text tiny.}
+Skip a line for a new paragraph.   
+
+You can use italics ({\em e.g.} {\em  Math is everywhere}) or {\bf bold}.
+Greek letters are a snap: $\Psi$, $\psi$,
+$\Phi$, $\phi$.  Equations within text are easy---
+The equation of a straight line is $y = m x+b$.
+You can also set aside equations like so:
+\begin{eqnarray}
+\nabla \cdot \bf u &=& 0, \\
+{dT_n \over dt} &=& \sum_{n=1}^N \left(-\mu - n^2\pi^2\right)T_n(t).
+\end{eqnarray}
+References\footnote{Lamport, L., 1986, {\em \LaTeX: User's Guide \& Reference Manual},
+    Addison-Wesley: Reading, Massachusetts.}
+are available. 
+If you have a postscript file, say {\tt sample.eps}, in the same local directory,
+you can insert the file as a figure.  Figure \ref{sample}, below, gives plots of various Bessel functions. 
+\begin{figure}[h]
+\centerline{\psfig{figure=sample.eps,height=1.2in}}
+\caption{Sample figure plotting Bessel functions}
+\label{sample}
+\end{figure}
+
+\medskip
+\leftline{\em Running \LaTeX}
+\medskip
+
+You can create a \LaTeX~ file with any text editor ({\tt vi, emacs, gedit},
+etc.). 
+To produce a document, you need to run the \LaTeX~application
+on the text file.  The text file must have the suffix ``{\tt .tex}''
+On the Linux system this is done via the command
+
+\medskip
+{\tt latex2pdf file.tex}
+
+\medskip
+\noindent
+This generates the file {\tt file.pdf}.
+
+\bigskip
+\noindent
+Alternatively you can use {\tt TeXShop} on a Macintosh or {\tt MiKTeX} on a Windows-based machine.
+The {\tt .tex} file must have a closing statement as
+below.
+
+\end{document}

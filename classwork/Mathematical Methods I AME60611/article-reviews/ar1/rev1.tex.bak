@@ -1,0 +1,79 @@
+\documentclass{article}
+\renewcommand{\baselinestretch}{1}
+\setlength{\textheight}{9in}
+\setlength{\textwidth}{6.0in}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\topmargin}{0in}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\parindent}{0.3in}
+\pagestyle{empty}
+\begin{document}
+
+\leftline{\bf Technical Review} 
+
+\leftline{Andrew Oliva}
+
+\leftline{AME 60611}
+
+\leftline{25 September 2015}
+
+\bigskip
+It is often desired to take a complicated system of equations and reduce them,
+ by some means, to a more easily modelled and easily studied set of equations.  
+ One such technique is to \textit{regularize}\footnote{Neumaier, A., 1998, Solving
+ Ill-conditioned and Singular Linear Systems: A Tutorial on Regularizations, {\em SIAM Review} 40: 636-666.}
+ the set equations and study the
+ output.  Which is relevant, so long as they still obey the appropriate physical
+ laws that the original set of equations was meant to embody.
+\\
+
+Perhaps one of the most notoriously difficult set of equations to regularize is
+the Navier-Stokes equations, which govern the conservation of mass, momentum,
+and energy in a general fluid (i.e. compressible, viscous, unsteady, turbulent, \textit{etc}.)
+ As a step toward regularizing the Navier-Stokes equations, Guermond, {\em et al.},\footnote{Guermond, J., Popov, B., 2014,
+     Viscous Regularization of the Euler Equations and Entropy Principles,
+ {\em SIAM Journal on Applied Mathematics}, 74(2): 284-305.}
+ have shown regularized Euler equations (which assume inviscid flow; $\mu~=~0$).
+ In addition, and perhaps most importantly, their work proves that with such a 
+ regularization, the density and internal energy are positive definite while
+ simulataneously proving that specific entropy satisifies a minimum principle. 
+ Meaning that the regularization obeys the same physical laws that the original
+ Euler equations were meant to capture. The Euler equations in their regularized form
+ are given below as:
+
+\begin{equation}
+    \partial_t \rho + \nabla \cdot (a \nabla \rho) = 0
+\end{equation}
+\begin{equation}
+    \partial_t \mathbf{m} + \nabla \cdot(\mathbf{u} \otimes \mathbf{m}) + pI) - \nabla\cdot(a\nabla\rho \otimes
+    \mathbf{u} + G(\nabla^s\mathbf{u})) = 0
+\end{equation}
+\begin{equation}
+    \partial_t E + \nabla \cdot (\mathbf{u}(E + p)) - \nabla \cdot (a\nabla(\rho e) + \frac{1}{2} \mathbf{u}^2 a \nabla p + G(\nabla^s\mathbf{u}) \cdot \mathbf{u} = 0
+\end{equation}
+
+Where $\partial_t$ is the partial derivative with respective to time, $\rho$ is density, $\mathbf{u}$ is the velocity,
+$G$ is a flux term  (which results from the regularization and has different forms for different assumptions), $E$ is the internal energy, $p$ is pressure, $I$ is the identity matrix, and $a$ is a function that satisifies the specific
+ entropy minimum principle (not shown here).
+\\
+
+ The form shown above for these equations is, according to the authors, the most robust form of the regularization of the Euler equations. Thus, the equations above are more easily
+ implemented in a numerical scheme for evaluation and study. This form of the Euler equations is then explored over a range of values and also compared to the classical Navier-Stokes regularizations.
+\\
+
+ Ultimately, these regularizations push the field of fluid mechanics toward regularizing the Navier-Stokes equations. However, the Navier-Stokes equations have an added
+ complication that the entropy of the fluid is not universally guaranteed to increase with a given process. The thermal flux term can allow the fluid to actually decrease in entropy.
+  This will not violate the second law of thermodynamics so long as the surrounding system increases in entropy.
+  It is this removal of the minimum principle of the specific entropy term that complicates the regularization of the Navier-Stokes equations.
+  However, the work in this paper makes significant strides in identifying specific terms that can simplify the reguarlization. It also suggests that
+  with further work, additional improvements can be made in our understanding of how to apply the technique appropriately.
+  Which was demonstrated by utilizing this regularization technique to the Euler equations.
+\\
+
+If these techniques were to be fully realized an easily implemented numerical scheme could be developed to rapdily solve the Navier-Stokes equations which would result in orders of
+magnitude speed up while still maintaining sufficient accuracy.
+
+
+\end{document}
