@@ -460,6 +460,7 @@ def meanline_solve(model):
             model['po'][sta]    = get_po(model,sta)
             model['theta'][sta] = get_theta(model,sta)
             model['delta'][sta] = get_delta(model,sta)
+            model['B'][sta] = get_blockage(model,sta)
 
             model['Vu'][sta]    = get_Vu(model,sta)
             model['Angmom'][sta]= get_Angmom(model,sta)
@@ -931,9 +932,14 @@ def get_blockage(model,sta):
     use blockage model to get value and return it to to be used in calcs later
     '''
     if( not model['options']['blockage'] == 0.0):
-        print('blockage non-zero -placeholder')
-        blockage = np.float64(0.)
+
+        if( sta > 3):
+            blockage = np.float64(0.04)
+        else:
+            blockage = np.float64(0.01 + sta * 0.01)
+
     else:
+        print('inside ehre yes')
         blockage = model['options']['blockage']
 
 
@@ -1124,14 +1130,22 @@ def additional_calculations(model):
     These quantities are calculated relative to the previous station and
     cumulatively through the machine.
     '''
-    PR = np.zeros_like(model['xinner']) # total pressure ratio
-    TR = np.zeros_like(model['xinner']) # total temperature ratio
-    TRs = np.zeros_like(model['xinner']) # isentropic total temperature ratio
+    PR = np.ones_like(model['xinner']) # total pressure ratio
+    TR = np.ones_like(model['xinner']) # total temperature ratio
+    TRs = np.ones_like(model['xinner']) # isentropic total temperature ratio
+    Tos = np.zeros_like(model['xinner']) # isentropic total temperature
     Fx = np.zeros_like(model['xinner']) # axial force on the fluid
     dho = np.zeros_like(model['xinner']) # delta total enthalpy
     dhos = np.zeros_like(model['xinner']) # isentropic delta total enthalpy
-    To_ideal = np.zeros_like(model['xinner']) # isentropic total temperature
-
+    Tos = np.zeros_like(model['xinner']) # isentropic total temperature
+    Es = np.zeros_like(model['xinner']) # isentropic power
+    Es2 = np.zeros_like(model['xinner'])
+    E   = np.zeros_like(model['xinner']) # actual power
+    etas = np.ones_like(model['xinner'])
+    etap = np.ones_like(model['xinner'])
+    etasc = np.ones_like(model['xinner'])
+    etapc = np.ones_like(model['xinner'])
+    Tos2 = np.zeros_like(model['xinner'])
 
     # calculate the AXIAL FORCE on the FLUID due to the MACHINE
     # this is the NEGATIVE of the AXIAL FORCE on the MACHINE due to the FLUID
@@ -1145,34 +1159,92 @@ def additional_calculations(model):
     TRs    = PR**((model['k']-1)/model['k'])
     TR[1:] = model['To'][1:]/model['To'][:-1]
 
+    for sta in range(len(model['xinner'])):
+
+        if( sta == 0):
+            Tos[sta] = TRs[sta] * model['To'][sta]
+            Tos2[sta] = Tos[sta]
+
+        else:
+            Tos[sta] = TRs[sta] * model['To'][sta-1]
+            Tos2[sta] = TRs[sta] * Tos[sta-1]
+
+    dho[1:] = model['cp'][1:] * model['To'][1:]\
+              - model['cp'][:-1]*model['To'][:-1]
+
+    dhos[1:] = model['cp'][1:] * Tos[1:]\
+              - model['cp'][:-1] * Tos[:-1]
+
+    tempflag = False
+
+    for sta in range(len(model['xinner'])):
+
+        if( model['mbld'][sta] >= 0):
+            E[sta] = model['ma'][sta]/gc * model['cp'][sta] * model['To'][sta]\
+                  - model['Q'][sta]\
+                  - model['mbld'][sta] * model['ma'][sta-1]/gc\
+                      * model['cp'][sta] * model['Toinj'][sta]
+
+            Es[sta] = model['ma'][sta]/gc * model['cp'][sta] * Tos[sta]\
+                  - model['Q'][sta]\
+                  - model['mbld'][sta] * model['ma'][sta-1]/gc\
+                      * model['cp'][sta] * model['Toinj'][sta]
+
+            Es2[sta] = Es[sta]
+
+        else:
+            E[sta] = model['ma'][sta]/gc * model['cp'][sta] * model['To'][sta]\
+                  - model['Q'][sta]\
+                  + model['mbld'][sta] * model['ma'][sta-1]/gc\
+                      * model['cp'][sta] * model['To'][sta]
+
+            Es[sta] = model['ma'][sta]/gc * model['cp'][sta] * Tos[sta]\
+                  - model['Q'][sta]\
+                  + model['mbld'][sta] * model['ma'][sta-1]/gc\
+                      * model['cp'][sta] * Tos[sta]
+
+            Es2[sta] = model['ma'][sta]/gc * model['cp'][sta] * Tos2[sta]\
+                  - model['Q'][sta]\
+                  + model['mbld'][sta] * model['ma'][sta-1]/gc\
+                      * model['cp'][sta] * Tos[sta]
+
+
+        if( not TR[sta] == 1):
+            etas[sta] = (Es[sta] - E[sta-1])/(E[sta] - E[sta-1])
+            etap[sta] = (model['k'][sta]-1)/model['k'][sta] \
+                        * np.log(PR[sta])/np.log(TR[sta])
+            tempflag = True
+
+        if( tempflag ):
+            etasc[sta] = (Es2[sta]-E[0])/(E[sta]-E[0])
+
+            etapc[sta] = (model['k'][sta]-1)/model['k'][sta]\
+                         * np.log(np.cumprod(PR)[sta])\
+                         / np.log(np.cumprod(TR)[sta])
+
+        else:
+            etasc[sta] = etasc[sta-1]
+            etapc[sta] = etapc[sta-1]
+
     # now add these quantities to the model dict
     model['Fx'] = Fx
     model['PR'] = PR
     model['TR'] = TR
-    model['TRs'] = TRs
+    model['PRc'] = np.cumprod(PR)
+    model['TRc'] = np.cumprod(TR)
+    model['Es'] = Es
+    model['Es2'] = Es2
+    model['E'] = E
+    model['etas'] = etas
+    model['etap'] = etap
+    model['etasc'] = etasc
+    model['etapc'] = etapc
     model['Fx-static'] = Fx[model['omega'] == 0]
     model['Fx-rotate'] = Fx[model['omega'] != 0]
     model['Torque-static'] = model['Torque'][model['omega'] == 0]
     model['Torque-rotate'] = model['Torque'][model['omega'] != 0]
 
     return(model)
-#
-#for sta in range(len(xinner)):
-#    #ho_ideal[sta] = cpo[sta] *  To[sta-1] * (Po[sta]/Po[sta-1])**((k[sta]-1)/k[sta])
-#    
-#    if( sta == 0):
-#        ho_ideal[sta] = ho[0]
-#        To_ideal[sta] = To[0]
-#        dho_ideal[sta] = 0
-#        dho[sta] = 0
-#        
-#    else:
-#        ho_ideal[sta] = cpo[sta] *  To_ideal[sta-1] * (PR[sta])**((k[sta]-1)/k[sta])
-#        To_ideal[sta] = ho_ideal[sta] / cpo[sta]
-#        dho_ideal[sta] = ho_ideal[sta] - ho_ideal[sta-1]
-#        dho[sta] = ho[sta] - ho[sta-1]
-#        
-#        
 #        
 #eta = np.zeros_like(xinner)
 ## these calculations need to be modified to account for energy leaving out the bleed
