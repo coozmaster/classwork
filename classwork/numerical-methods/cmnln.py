@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import scipy.optimize as scopt
 import re
+import shutil
 import matplotlib.pyplot as plt
 import argparse
 import os
@@ -12,8 +13,9 @@ import yaml
 sys.dont_write_bytecode = True
 ###############################################################################
 def main():
+    code,ver,date = 'Compressor Meanline','v0.5','2/18/2016'
 
-    intro('Compressor Meanline','v0.4','2/12/2016')
+    intro(code,ver,date)
 
     args = get_args()
 
@@ -23,15 +25,13 @@ def main():
 
     model = get_user_input(args.fn)
 
+    model['code'],model['ver'],model['date'] = [code,ver,date]
+
     model = get_calc_locations(model)
 
     model = meanline_solve(model)
 
     model = additional_calculations(model)
-
-    model = create_help(model)
-
-    model = create_units(model)
 
     output(args,model)
 
@@ -45,6 +45,7 @@ def main():
         return(model)
 
     else:
+
         return()
 
 ###############################################################################
@@ -354,7 +355,7 @@ def meanline_solve(model):
              'Porel','To','Torel','ho','horel','rothalpy','po','theta','delta',\
              'P','Pd','Pdrel','T','p','R','k','Nm','ma','Nc','alpha','beta',\
              'Mx','Mr','Mm','Mu','Murel','M','Mrel','Torque','Poloss',\
-             'omega','flowcfrms','flowcftip','flowcfhub','psi','chi','xi']
+             'omega','flowcfrms','flowcftip','flowcfhub','psi','chi','xi','mc']
 
     for name in names:
 
@@ -426,6 +427,7 @@ def meanline_solve(model):
             model['T'][sta]         = get_T(model,sta)
 
             model['P'][sta]         = get_P(model,sta)
+            model['p'][sta]         = get_p(model,sta)
             model['Pd'][sta]        = get_Pd(model,sta)
 
             model['Vm'][sta]        = get_Vm(model,sta)
@@ -451,6 +453,8 @@ def meanline_solve(model):
             model['Pdrel'][sta]     = get_Pdrel(model,sta)
 
             check_ma(model,sta)
+
+            model['mc'][sta]        = get_mc(model,sta)
 
         elif( model['stations'][sta]['type'] == 'cam' ):
 
@@ -496,6 +500,7 @@ def meanline_solve(model):
             model['Poloss'][sta]= get_Poloss(model,sta)
 
             check_ma(model,sta)
+            model['mc'][sta]        = get_mc(model,sta)
 
         elif( model['stations'][sta]['type'] == 'statorte' ):
 
@@ -539,6 +544,7 @@ def meanline_solve(model):
             model['Torque'][sta]= get_Torque(model,sta)
 
             check_ma(model,sta)
+            model['mc'][sta]        = get_mc(model,sta)
 
         elif( model['stations'][sta]['type'] == 'rotorte' ):
 
@@ -595,7 +601,15 @@ def meanline_solve(model):
                   model['flowcftip'][sta],\
                   model['flowcfhub'][sta] = get_flowcf(model,sta)
 
+              model['mc'][sta]        = get_mc(model,sta)
+
     return(model)
+
+def get_mc(model,sta):
+
+    mc = model['ma'][sta] * np.sqrt(model['theta'])/model['delta']
+
+    return(mc)
 
 def get_workcf(model,sta):
     '''
@@ -1260,144 +1274,278 @@ def additional_calculations(model):
 #eta_overall = Power_ideal[-1]/Power[-1]
 #
 #
-## In[72]:
-#
-#outfile = fn1+'.out'
-#
-#with open(outfile,'w') as out:
-# 
-#    out.write(" COMPRESSOR MEANLINE ".center(80,'#')+'\n')
-#    out.write(" v0.2 1/22/2016 ".center(80,' ')+'\n\n')
-#    out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s} {4:<10s} {5:<10s}\n".format( 'Nc[RPM]','mc[lbm/s]',\
-#		    'Po[psfa]','To[deg R]','alpha[deg]','phi[deg]'))
-#
-#    out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f} {3:<10.3f} {4:<10.3f} {5:<10.3f}\n".format(\
-#		    Nc_inlet,mc[0],Po[0], To[0],alpha_inlet*rad2deg, phi[0]*rad2deg))
-#    out.write("\n{0:<10s} {1:<10s}\n".format('gasmodel','relhumidity'))
-#    out.write("{0:<10s} {1:<10.3f}\n\n".format(gasmodel,relhumidity))
-#    
-#    for sta in range(len(xinner)):
-#        if( sta == 0):
-#            #out.write("#"*80+'\n')
-#            out.write(" STATION INFORMATION ".center(80,'#')+"\n")
-#            #out.write("#"*80+'\n\n')
-#        else:
-#            out.write("#"*80+"\n")
-#    
-#    out.write("{0:<10s} {1:<10s} {2:<10s}\n".format('Station','Label','Type'))
-#    out.write("{0:<10d} {1:<10s} {2:<10s}\n\n".format(sta,label[sta],statype[sta]))
-#    out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s} {4:<10s} {5:<10s} {6:<10s}\n".format(\
-#		    'xinner[in]','xouter[in]','rinner[in]','router[in]','alpha[deg]',\
-#		    'phi[deg]','Area[ft**2]'))
-#    out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f} {3:<10.3f} {4:<10.3f} {5:<10.3f} {6:<10.3f}\n\n".format(\
-#		    xinner[sta]*ft2in,xouter[sta]*ft2in,rinner[sta]*ft2in,router[sta]*ft2in,\
-#		    alpha[sta]*rad2deg,phi[sta]*rad2deg,A[sta]))
-#    
-#    out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s} {4:<10s} {5:<10s} {6:<10s}\n".format(\
-#		    'xrms[in]','rrms[in]','ma[lbm/s]','mbld[-]','Q[HP]','cp/cv[-]','R[lbf-ft/slg-R]'))
-#    out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f} {3:<10.3f} {4:<10.3f} {5:<10.3f} {6:<10.3f}\n\n".format(\
-#		    xrms[sta]*ft2in,rrms[sta]*ft2in,ma[sta],mbld[sta],Q[sta]*lbfft_s2HP,k[sta],R[sta]))
-#    
-#    if( statype[sta].lower() == 'statorte'):
-#        out.write("{0:<10s} {1:<10s} {2:<15s} {3:<10s}\n".format( 'Po[psfa]','To[deg R]','po[slg/cf]','Ptloss[-]'))
-#        out.write("{0:<10.3f} {1:<10.3f} {2:<10.6f} {3:<10.3f}\n\n".format( Po[sta],To[sta],po[sta],Ptloss[sta]))
-#    
-#    elif( statype[sta].lower() == 'rotorte'):
-#        out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s} {4:<10s}\n".format( 'Po[psfa]','To[deg R]','po[slg/cf]','Work CF[-]','Flow CF[-]'))
-#        out.write("{0:<10.3f} {1:<10.3f} {2:<10.6f} {3:<10.3f} {4:<10.3f}\n\n".format( Po[sta],To[sta],po[sta],workcf[sta],flowcf[sta]))
-#    
-#    else:
-#        out.write("{0:<10s} {1:<10s} {2:<10s}\n".format( 'Po[psfa]','To[deg R]','po[slg/cf]'))
-#    out.write("{0:<10.3f} {1:<10.3f} {2:<10.6f}\n\n".format( Po[sta],To[sta],po[sta]))
-#
-#    out.write("{0:<10s} {1:<10s} {2:<10s}\n".format( 'P[psfa]','T[deg R]','p[slg/cf]'))
-#    out.write("{0:<10.3f} {1:<10.3f} {2:<10.6f}\n\n".format( P[sta],T[sta],p[sta]))
-#    
-#    out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s} {4:<10s} {5:<10s}{6:<10s}\n".format( 'Vx[ft/s]','Vr[ft/s]','Vu[ft/s]','Vm[ft/s]','V[ft/s]','Vurel[ft/s]','Vrel[ft/s]'))
-#    out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f} {3:<10.3f} {4:<10.3f} {5:<10.3f} {6:<10.3f}\n\n".format( Vx[sta],Vr[sta],Vu[sta],Vm[sta],V[sta],Vurel[sta],Vrel[sta]))
-#    
-#    out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s} {4:<10s} {5:<10s} {6:<10s}\n".format( 'Mx[-]','Mr[-]','Mu[-]','Mm[-]','M[-]','Murel[-]','Mrel[-]'))
-#    out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f} {3:<10.3f} {4:<10.3f} {5:<10.3f} {6:<10.3f}\n\n".format( Mx[sta],Mr[sta],Mu[sta],Mm[sta],M[sta],Murel[sta],Mrel[sta]))
-#    
-#    out.write("{0:<10s} {1:<10s}\n".format('T[lbf-ft]','mc[lbm/s]'))
-#    out.write("{0:<10.3f} {1:<10.3f}\n\n".format(Torque[sta],mc[sta]))
-#    
-#    out.write(' OVERALL '.center(80,'#')+'\n')
-#    
-#    out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s}\n".format( 'TR[-]','PR[-]','Ad. Eff[-]','Power [HP]'))
-#    out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f} {3:<10.3f}\n\n".format( np.cumprod(TR)[-1],np.cumprod(PR)[-1],eta_overall,Power[-1]*lbfft_s2HP))
-#    
-#    out.write("{0:<10s} {1:<10s} {2:<10s}\n".format('Fx[lbf]','Fx(static)','Fx(rotate)'))
-#    out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f}\n\n".format(np.cumsum(Fx)[-1],
-#    np.cumsum(Fx_static)[-1],np.cumsum(Fx_rotate)[-1]))
-#    
-#    out.write("{0:<10s} {1:<10s} {2:<10s}\n".format('T[lbf-ft]','T(static)','T(rotate)'))
-#    out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f}".format( np.cumsum(Torque)[-1],np.cumsum(Torque_static)[-1],np.cumsum(Torque_rotate)[-1]))
-# 
-#
-#
-## plotting
-#plt.figure(0,figsize=(5*np.e,5))
-#plt.plot(xinner * ft2in,rinner * ft2in,'bo-',label=r'Endwall')
-#plt.plot(xouter * ft2in,router * ft2in,'bo-')
-#
-#for i in range(len(stator_xle)):
-#    if( i % 2 == 0):
-#        plt.plot(stator_xle[i:i+2] * ft2in,stator_rle[i:i+2] * ft2in,'g--')
-#        plt.plot(stator_xte[i:i+2] * ft2in,stator_rte[i:i+2] * ft2in,'g--')
-#    
-#for i in range(len(rotor_xle)):
-#    if( i % 2 == 0):
-#        plt.plot(rotor_xle[i:i+2] * ft2in,rotor_rle[i:i+2] * ft2in,'r--')
-#        plt.plot(rotor_xte[i:i+2] * ft2in,rotor_rte[i:i+2] * ft2in,'r--')
-#    
-#plt.plot(xinlet * ft2in,rinlet * ft2in,color='b',linestyle='dotted')
-#plt.plot(xexit * ft2in,rexit * ft2in,color='b',linestyle='dotted')
-#plt.plot(xrms * ft2in,rrms * ft2in,'mx-.',label=r'RMS')
-#plt.axis('equal')
-##plt.grid('on')
-##plt.legend(loc='best')
-##plt.ylim(ymin=0)
-#plt.ylabel(r'Radius; $r\ [in]$',fontsize='x-large')
-#plt.xlabel(r'Axial; $x\ [in]$',fontsize='x-large')
-#plt.grid('on')
-#plt.savefig('./geometry.pdf')
-#
-#plt.figure(1,figsize=(5*np.e,5))
-#plt.plot(xrms*ft2in,Mrel,'ro-',label=r'$M_{rel}$')
-#plt.plot(xrms*ft2in,M,'ko-',label=r'$M$')
-#plt.plot(xrms*ft2in,Mm,'bo-',label=r'$M_m$')
-#plt.plot(xrms*ft2in,abs(Murel),'go-',label=r'$M_{u,rel}$')
-#plt.plot(xrms*ft2in,Mu,'mo-',label=r'$M_u$')
-#plt.legend(loc='best')
-#plt.grid('on')
-#plt.xlabel(r'Axial; $x\ [in]$',fontsize='x-large')
-#plt.ylim(ymax=1.)
-#plt.savefig('./M.pdf')
-#
-#plt.figure(2,figsize=(5*np.e,5))
-#plt.plot(xrms*ft2in,A,'bo-')
-#plt.grid('on')
-#plt.ylabel(r'Perpendicular Flow Area; $A_\perp\ [ft^2]$',fontsize='x-large')
-#plt.xlabel(r'Axial; $x\ [in]$',fontsize='x-large')
-#
-#plt.figure(3,figsize=(5*np.e,5))
-#plt.plot(xrms*ft2in,Po,'bo-',label=r'$P_o$')
-#plt.plot(xrms*ft2in,P,'bo--',label=r'$P$')
-#plt.legend(loc='best')
-#plt.grid('on')
-#plt.ylabel(r'Pressure $[lb_f/ft^2]$',fontsize='x-large')
-#plt.xlabel(r'Axial; $x\ [in]$',fontsize='x-large')
-#
-#plt.figure(4,figsize=(5*np.e,5))
-#plt.plot(xrms*ft2in,To,'ro-',label=r'$T_o$')
-#plt.plot(xrms*ft2in,T,'ro--',label=r'$T$')
-#plt.legend(loc='best')
-#plt.grid('on')
-#plt.ylabel(r'Temperature $[deg\ R]$',fontsize='x-large')
-#plt.xlabel(r'Axial; $x\ [in]$',fontsize='x-large')
-#
-#
+def create_asciiout(model,fn):
+    outfile = fn+'.out'
+
+    with open(outfile,'w') as out:
+
+        out.write(str(" "+model['code']+" ").center(80,'#')+'\n')
+        out.write(str(" "+model['ver']+" "+model['date']+" ").center(80,' ')+'\n\n')
+        out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s} {4:<10s} {5:<10s}\n".format(\
+                      'Nc[RPM]','mc[lbm/s]','Po[psfa]','To[deg R]','alpha[deg]',\
+                      'phi[deg]'))
+
+        out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f} {3:<10.3f} {4:<10.3f} {5:<10.3f}\n".format(\
+                      model['inlet']['Nc'],model['inlet']['mc'],model['inlet']['Po'],\
+                      model['inlet']['To'],model['inlet']['alpha']*rad2deg,\
+                      model['phi'][0]*rad2deg))
+
+        out.write("\n{0:<10s} {1:<10s}\n".format('gasmodel','relhumidity'))
+        out.write("{0:<10s} {1:<10.3f}\n\n".format(model['options']['gasmodel'],\
+                      model['options']['relhum']))
+
+        for sta in range(len(model['xinner'])):
+            if( sta == 0):
+                #out.write("#"*80+'\n')
+                out.write(" STATION INFORMATION ".center(80,'#')+"\n")
+                #out.write("#"*80+'\n\n')
+            else:
+                out.write("#"*80+"\n")
+
+            out.write("{0:<10s} {1:<10s} {2:<10s}\n".format('Station','Label','Type'))
+            out.write("{0:<10d} {1:<10s} {2:<10s}\n\n".format(sta,model['stations'][sta]['label'],\
+                      model['stations'][sta]['type']))
+            out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s} {4:<10s} {5:<10s} {6:<10s}\n".format(\
+                      'xinner[in]','xouter[in]','rinner[in]','router[in]','alpha[deg]',\
+                      'phi[deg]','Area[ft**2]'))
+            out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f} {3:<10.3f} {4:<10.3f} {5:<10.3f} {6:<10.3f}\n\n".format(\
+                      model['xinner'][sta]*ft2in,model['xouter'][sta]*ft2in,\
+                      model['rinner'][sta]*ft2in,model['router'][sta]*ft2in,\
+                      model['alpha'][sta]*rad2deg,model['phi'][sta]*rad2deg,\
+                      model['A'][sta]))
+
+            out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s} {4:<10s} {5:<10s} {6:<10s}\n".format(\
+                      'xrms[in]','rrms[in]','ma[lbm/s]','mbld[-]','Q[HP]','cp/cv[-]','R[lbf-ft/slg-R]'))
+            out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f} {3:<10.3f} {4:<10.3f} {5:<10.3f} {6:<10.3f}\n\n".format(\
+                      model['xrms'][sta]*ft2in,model['rrms'][sta]*ft2in,model['ma'][sta],\
+                      model['mbld'][sta],model['Q'][sta]*lbfft_s2HP,model['k'][sta],model['R'][sta]))
+
+            if( model['stations'][sta]['type'].lower() == 'statorte'):
+                out.write("{0:<10s} {1:<10s} {2:<15s} {3:<10s}\n".format(\
+                          'Po[psfa]','To[deg R]','po[slg/cf]','Ptloss[-]'))
+                out.write("{0:<10.3f} {1:<10.3f} {2:<10.6f} {3:<10.3f}\n\n".format(model['Po'][sta],\
+                          model['To'][sta],model['po'][sta],model['Poloss'][sta]))
+
+            elif( model['stations'][sta]['type'].lower() == 'rotorte'):
+                out.write("{0:<10s} {1:<10s} {2:<10s}\n".format(\
+                          'Po[psfa]','To[deg R]','po[slg/cf]'))
+                out.write("{0:<10.3f} {1:<10.3f} {2:<10.6f}\n\n".format(\
+                          model['Po'][sta],model['To'][sta],model['po'][sta]))
+
+                out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s} {4:<10s} {5:<10s}\n".format(\
+                          'WCFhub[-]','WCFrms[-]','WCFtip[-]','FCFhub[-]',\
+                          'FCFrms[-]','FCFtip[-]'))
+                out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f} {3:<10.3f} {4:<10.3f} {5:<10.3f}\n\n".format(\
+                          model['workcfhub'][sta],model['workcfrms'][sta],model['workcftip'][sta],\
+                          model['flowcfhub'][sta],model['flowcfrms'][sta],model['flowcftip'][sta]))
+
+                out.write("{0:<10s} {1:<10s} {2:<10s}\n".format(\
+                          'Uhub[ft/s]','Urms[ft/s]','Utip[ft/s]'))
+                out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f}\n\n".format(\
+                          model['Uhub'][sta],model['Urms'][sta],model['Utip'][sta]))
+
+
+            else:
+                out.write("{0:<10s} {1:<10s} {2:<10s}\n".format('Po[psfa]',\
+                          'To[deg R]','po[slg/cf]'))
+
+                out.write("{0:<10.3f} {1:<10.3f} {2:<10.6f}\n\n".format(\
+                          model['Po'][sta],model['To'][sta],model['po'][sta]))
+
+            # this part of the output is common to all stations
+            out.write("{0:<10s} {1:<10s} {2:<10s}\n".format(\
+                      'P[psfa]','T[deg R]','p[slg/cf]'))
+            out.write("{0:<10.3f} {1:<10.3f} {2:<10.6f}\n\n".format(\
+                      model['P'][sta],model['T'][sta],model['p'][sta]))
+
+            out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s} {4:<10s} {5:<10s}{6:<10s}\n".format(\
+                      'Vx[ft/s]','Vr[ft/s]','Vu[ft/s]','Vm[ft/s]','V[ft/s]',\
+                      'Vurel[ft/s]','Vrel[ft/s]'))
+            out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f} {3:<10.3f} {4:<10.3f} {5:<10.3f} {6:<10.3f}\n\n".format(\
+                      model['Vx'][sta],model['Vr'][sta],model['Vu'][sta],\
+                      model['Vm'][sta],model['V'][sta],model['Vurel'][sta],\
+                      model['Vrel'][sta]))
+
+            out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s} {4:<10s} {5:<10s} {6:<10s}\n".format(\
+                      'Mx[-]','Mr[-]','Mu[-]','Mm[-]','M[-]','Murel[-]',\
+                      'Mrel[-]'))
+            out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f} {3:<10.3f} {4:<10.3f} {5:<10.3f} {6:<10.3f}\n\n".format(\
+                      model['Mx'][sta],model['Mr'][sta],model['Mu'][sta],\
+                      model['Mm'][sta],model['M'][sta],model['Murel'][sta],\
+                      model['Mrel'][sta]))
+
+            out.write("{0:<10s} {1:<10s} {2:<10s}\n".format('T[lbf-ft]','mc[lbm/s]','ma[lbm/s]'))
+            out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f}\n\n".format(\
+                      model['Torque'][sta],model['mc'][sta],model['ma'][sta]))
+
+        out.write(' OVERALL '.center(80,'#')+'\n')
+
+        out.write("{0:<10s} {1:<10s} {2:<10s} {3:<10s}\n".format(\
+                      'TR[-]','PR[-]','Ad. Eff[-]','Power [HP]'))
+        out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f} {3:<10.3f}\n\n".format(\
+                      np.cumprod(model['TR'])[-1],np.cumprod(model['PR'])[-1],\
+                      np.float64(-999.0),(model['E'][-1]-model['E'][0])*lbfft_s2HP))
+
+        out.write("{0:<10s} {1:<10s} {2:<10s}\n".format(\
+                      'Fx[lbf]','Fx(static)','Fx(rotate)'))
+        out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f}\n\n".format(\
+                      np.cumsum(model['Fx'])[-1],np.cumsum(model['Fx-static'])[-1],\
+                      np.cumsum(model['Fx-rotate'])[-1]))
+
+        out.write("{0:<10s} {1:<10s} {2:<10s}\n".format('T[lbf-ft]','T(static)','T(rotate)'))
+        out.write("{0:<10.3f} {1:<10.3f} {2:<10.3f}".format(\
+                      np.cumsum(model['Torque'])[-1],np.cumsum(model['Torque-static'])[-1],\
+                      np.cumsum(model['Torque-rotate'])[-1]))
+
+    return()
+
+def find_stator_lete_and_rotor_lete_stations(model):
+
+    stator_xle = []
+    stator_rle = []
+    stator_xte = []
+    stator_rte = []
+    rotor_xle  = []
+    rotor_rle  = []
+    rotor_xte  = []
+    rotor_rte  = []
+
+    for sta in range(len(model['xinner'])):
+        if( model['stations'][sta]['type'].lower() == 'statorte'):
+            stator_xte.append(model['stations'][sta]['xinner'])
+            stator_xte.append(model['stations'][sta]['xouter'])
+            stator_xle.append(model['stations'][sta-1]['xinner'])
+            stator_xle.append(model['stations'][sta-1]['xouter'])
+            stator_rte.append(model['stations'][sta]['rinner'])
+            stator_rte.append(model['stations'][sta]['router'])
+            stator_rle.append(model['stations'][sta-1]['rinner'])
+            stator_rle.append(model['stations'][sta-1]['router'])
+
+        elif( model['stations'][sta]['type'].lower() == 'rotorte'):
+            rotor_xte.append(model['stations'][sta]['xinner'])
+            rotor_xte.append(model['stations'][sta]['xouter'])
+            rotor_xle.append(model['stations'][sta-1]['xinner'])
+            rotor_xle.append(model['stations'][sta-1]['xouter'])
+            rotor_rte.append(model['stations'][sta]['rinner'])
+            rotor_rte.append(model['stations'][sta]['router'])
+            rotor_rle.append(model['stations'][sta-1]['rinner'])
+            rotor_rle.append(model['stations'][sta-1]['router'])
+
+    stator_xle = np.asarray(stator_xle,dtype=np.float64())
+    stator_xte = np.asarray(stator_xte,dtype=np.float64())
+    stator_rle = np.asarray(stator_rle,dtype=np.float64())
+    stator_rte = np.asarray(stator_rte,dtype=np.float64())
+    rotor_xle  = np.asarray(rotor_xle,dtype=np.float64())
+    rotor_xte  = np.asarray(rotor_xte,dtype=np.float64())
+    rotor_rle  = np.asarray(rotor_rle,dtype=np.float64())
+    rotor_rte  = np.asarray(rotor_rte,dtype=np.float64())
+
+    return(stator_xle,stator_xte,stator_rle,stator_rte,\
+        rotor_xle,rotor_xte,rotor_rle,rotor_rte)
+
+def create_plots(model,fn):
+    '''
+    create output plots in a directory called "plots"
+    '''
+    outdir = './plots/'
+
+    if( os.path.exists(outdir)):
+        shutil.rmtree(outdir)
+
+    os.mkdir(outdir)
+
+    plt.figure(figsize=(5*np.e,5))
+    plt.plot(model['xinner']*ft2in,model['rinner']*ft2in,'bo-',label=r'Endwall')
+    plt.plot(model['xouter']*ft2in,model['router']*ft2in,'bo-')
+
+    stator_xle,stator_xte,stator_rle,stator_rte,\
+        rotor_xle,rotor_xte,rotor_rle,rotor_rte = find_stator_lete_and_rotor_lete_stations(model)
+
+    for i in range(len(stator_xle)):
+        if( i % 2 == 0):
+            plt.plot(stator_xle[i:i+2] * ft2in,stator_rle[i:i+2] * ft2in,'g--')
+            plt.plot(stator_xte[i:i+2] * ft2in,stator_rte[i:i+2] * ft2in,'g--')
+
+    for i in range(len(rotor_xle)):
+        if( i % 2 == 0):
+            plt.plot(rotor_xle[i:i+2] * ft2in,rotor_rle[i:i+2] * ft2in,'r--')
+            plt.plot(rotor_xte[i:i+2] * ft2in,rotor_rte[i:i+2] * ft2in,'r--')
+
+    xinlet = np.asarray([model['xinner'][0],model['xouter'][0]],\
+                 dtype=np.float64()) * ft2in
+    rinlet = np.asarray([model['rinner'][0],model['router'][0]],\
+                 dtype=np.float64()) * ft2in
+    xexit  = np.asarray([model['xinner'][-1],model['xouter'][-1]],\
+                 dtype=np.float64()) * ft2in
+    rexit  = np.asarray([model['rinner'][-1],model['router'][-1]],\
+                 dtype=np.float64()) * ft2in
+    plt.plot(xinlet,rinlet,color='b',linestyle='dotted') 
+    plt.plot(xexit,rexit,color='b',linestyle='dotted') 
+    plt.plot(model['xrms']*ft2in,model['rrms']*ft2in,'mx-.',label=r'RMS')
+    plt.axis('equal')
+    #plt.legend(loc='best')
+    plt.ylabel(r'Radius; $r\ [in]$',fontsize='x-large')
+    plt.xlabel(r'Axial; $x\ [in]$',fontsize='x-large')
+    plt.grid('on')
+
+    plt.savefig(str(outdir+'geometry-'+fn+'.pdf'))
+    plt.close()
+
+    # next plot
+    plt.figure(figsize=(5*np.e,5))
+    plt.plot(model['xrms']*ft2in,model['Mrel'],'ro-',label=r'$M_{rel}$')
+    plt.plot(model['xrms']*ft2in,model['M'],'ko-',label=r'$M$')
+    plt.plot(model['xrms']*ft2in,model['Mm'],'bo-',label=r'$M_m$')
+    plt.plot(model['xrms']*ft2in,np.abs(model['Murel']),'go-',label=r'$M_{u,rel}$')
+    plt.plot(model['xrms']*ft2in,model['Mu'],'mo-',label=r'$M_u$')
+    plt.legend(loc='best')
+    plt.grid('on')
+    plt.xlabel(r'Axial; $x\ [in]$',fontsize='x-large')
+    plt.ylim(ymax=1.)
+    plt.savefig(str(outdir+'M-'+fn+'.pdf'))
+    plt.close()
+
+    # next plot
+    plt.figure(figsize=(5*np.e,5))
+    plt.plot(model['xrms']*ft2in,model['A'],'bo-')
+    plt.grid('on')
+    plt.ylabel(r'Perpendicular Flow Area; $A_\perp\ [ft^2]$',fontsize='x-large')
+    plt.xlabel(r'Axial; $x\ [in]$',fontsize='x-large')
+    plt.savefig(str(outdir+'A-'+fn+'.pdf'))
+    plt.close()
+
+    # next plot
+    plt.figure(figsize=(5*np.e,5))
+    plt.plot(model['xrms']*ft2in,model['Po'],'bo-',label=r'$P_o$')
+    plt.plot(model['xrms']*ft2in,model['P'],'bo--',label=r'$P$')
+    plt.legend(loc='best')
+    plt.grid('on')
+    plt.ylabel(r'Pressure $[lb_f/ft^2]$',fontsize='x-large')
+    plt.xlabel(r'Axial; $x\ [in]$',fontsize='x-large')
+    plt.savefig(str(outdir+'P_Po-'+fn+'.pdf'))
+    plt.close()
+
+    # next plot
+    plt.figure(figsize=(5*np.e,5))
+    plt.plot(model['xrms']*ft2in,model['To'],'ro-',label=r'$T_o$')
+    plt.plot(model['xrms']*ft2in,model['T'],'ro--',label=r'$T$')
+    plt.legend(loc='best')
+    plt.grid('on')
+    plt.ylabel(r'Temperature $[deg\ R]$',fontsize='x-large')
+    plt.xlabel(r'Axial; $x\ [in]$',fontsize='x-large')
+    plt.savefig(str(outdir+'T_To-'+fn+'.pdf'))
+    plt.close()
+
+    # next plot
+    plt.figure(figsize=(5*np.e,5))
+    plt.plot(model['xrms']*ft2in,np.cumprod(model['PR']),'bo-')
+    plt.grid('on')
+    plt.ylabel(r'Total Pressure Ratio; $PR\ [-]$',fontsize='x-large')
+    plt.xlabel(r'Axial; $x\ [in]$',fontsize='x-large')
+    plt.savefig(str(outdir+'PR-'+fn+'.pdf'))
+    plt.close()
+
+    return()
 
 def create_help(model):
     model['help'] = {}
@@ -1428,18 +1576,24 @@ def output(args,model):
 
     fn = args.fn.split('.')[0]
 
+    model = create_help(model)
+
+    model = create_units(model)
+
     # write output yaml file
     if( model['options']['yamlout'] ):
         with open(fn+'.yaml','w') as out:
             out.write(yaml.dump(model))
 
     # write output file in different format
-#    if( model['options']['asciiout'] ):
-#        with open(fn+'.out','w') as out:
+    if( model['options']['asciiout'] ):
+         create_asciiout(model,fn)
 
     # create pdf plots
-#    if( model['options']['plots'] ):
-    return()
+    if( model['options']['plots'] ):
+         create_plots(model,fn)
+
+    return(model)
 
 if(__name__ == '__main__'):
     main()
